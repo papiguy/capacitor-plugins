@@ -36,11 +36,29 @@ public class StatusBarPlugin: CAPPlugin {
 
         call.resolve([:])
     }
-
+    
     @objc func setBackgroundColor(_ call: CAPPluginCall) {
-        call.unimplemented()
-    }
-
+        let options = call.options!
+        
+        if let colorHexStr = options["color"] as? String {
+            let color = UIColor.init(colorHexStr)
+            if #available(iOS 13.0, *) {
+                DispatchQueue.main.async {
+                    let window = UIApplication.shared.windows.filter {$0.isKeyWindow}.first
+                    let statusBar = UIView(frame: window?.windowScene?.statusBarManager?.statusBarFrame ?? CGRect.zero)
+                    statusBar.backgroundColor = color
+                    window?.addSubview(statusBar)
+                }
+            } else {
+                DispatchQueue.main.async {
+                    if let statusBarView = UIApplication.shared.value(forKey: "statusBar") as? UIView {
+                        statusBarView.backgroundColor = color
+                    }
+                }
+            }
+        }
+      }
+    
     func setAnimation(_ call: CAPPluginCall) {
         let animation = call.getString("animation", "FADE")
         if animation == "SLIDE" {
@@ -93,4 +111,27 @@ public class StatusBarPlugin: CAPPlugin {
     @objc func setOverlaysWebView(_ call: CAPPluginCall) {
         call.unimplemented()
     }
+}
+
+extension UIColor {
+  
+  convenience init(_ hex: String, alpha: CGFloat = 1.0) {
+    var cString = hex.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    
+    if cString.hasPrefix("#") { cString.removeFirst() }
+    
+    if cString.count != 6 {
+      self.init("ff0000") // return red color for wrong hex input
+      return
+    }
+    
+    var rgbValue: UInt64 = 0
+    Scanner(string: cString).scanHexInt64(&rgbValue)
+    
+    self.init(red: CGFloat((rgbValue & 0xFF0000) >> 16) / 255.0,
+              green: CGFloat((rgbValue & 0x00FF00) >> 8) / 255.0,
+              blue: CGFloat(rgbValue & 0x0000FF) / 255.0,
+              alpha: alpha)
+  }
+
 }
